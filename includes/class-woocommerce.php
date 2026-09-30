@@ -23,7 +23,7 @@ class TraVisa_WooCommerce {
             if ($coupon->is_type('fixed_cart') && WC()->cart) { foreach (WC()->cart->get_cart() as $item) { if (isset($item['travisa'])) { throw new Exception('لا يمكن جمع كوبون السلة مع حجز TraVisa.'); } } } return $valid;
         },10,2);
     }
-    public static function is_product(int $id): bool { return (bool)get_post_meta($id,'_travisa_carrier',true); }
+    public static function is_product(int $id): bool { return (bool)get_post_meta($id,'_travisa_carrier',true) || (bool)get_post_meta($id,'_travisa_catalog_product',true); }
     private static function product(): int {
         $id = (int)get_option('travisa_product_id',0); $p = $id ? wc_get_product($id) : false;
         if ($p && $p->get_status()==='publish' && self::is_product($id)) { return $id; }
@@ -42,7 +42,14 @@ class TraVisa_WooCommerce {
         $bookings = 0;
         foreach (WC()->cart->get_cart() as $item) { if (isset($item['travisa'])) { $bookings++; } }
         if ($bookings >= 20) { throw new RuntimeException('الحد الأقصى 20 حجز TraVisa في السلة. أكمل الطلب أو احذف حجزًا للمتابعة.'); }
-        $product = self::product(); self::$adding = true;
+        $product = self::product();
+        $requested = absint($request['product_id'] ?? 0);
+        if ($requested && class_exists('TraVisa_Products') && ($scope = TraVisa_Products::product_scope($requested))) {
+            $allowed = array_fill_keys(array_keys(TraVisa_Products::scoped_rows($scope[0],$scope[1])),true);
+            foreach (($request['items'] ?? []) as $item) { if (!isset($allowed[$item['id'] ?? ''])) { throw new RuntimeException('الخدمة المختارة لا تتبع هذا المنتج.'); } }
+            $product = $requested;
+        }
+        self::$adding = true;
         try { return WC()->cart->add_to_cart($product,1,0,[],['travisa'=>['request'=>$request,'quote'=>$quote],'travisa_unique'=>wp_generate_uuid4()]); }
         finally { self::$adding = false; }
     }

@@ -77,6 +77,7 @@ class TraVisa_Store {
             }
             if ($wpdb->update(self::table('state'), ['version_id'=>$version], ['id'=>1], ['%d'], ['%d']) === false) { throw new RuntimeException('تعذر تفعيل الإصدار.'); }
             if ($wpdb->query('COMMIT') === false) { throw new RuntimeException('تعذر اعتماد المعاملة.'); }
+            do_action('travisa_prices_committed', $rows, $version);
             return $version;
         } catch (Throwable $e) { $wpdb->query('ROLLBACK'); throw $e; }
     }

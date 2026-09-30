@@ -4,7 +4,7 @@
   if (!config) return;
   document.querySelectorAll('.tv-form').forEach(form => {
     const find = s => form.querySelector(s);
-    const country = find('.tv-country'), tier = find('.tv-tier'), appointment = find('.tv-appointment');
+    const country = find('.tv-country'), tier = find('.tv-tier'), tierList = find('.tv-tier-checklist'), appointment = find('.tv-appointment');
     const result = find('.tv-result'), status = find('.tv-status'), add = find('.tv-add'), calculate = find('.tv-calculate');
     const catalog = config.catalog;
     let quote = null, revision = 0, busy = false;
@@ -13,13 +13,18 @@
     function invalidate() { revision++; quote = null; add.disabled = true; result.textContent = 'تغيّرت الاختيارات. اضغط حساب التكلفة لتحديث الملخص.'; status.textContent = ''; }
     const option = (value, text) => { const n = el('option', text); n.value = value; return n; };
     [...new Set(catalog.filter(r => r.kind === 'visa').map(r => r.country))].sort((a,b) => a.localeCompare(b,'ar')).forEach(c => country.append(option(c,c)));
+    if (config.scope?.type === 'country') country.value = config.scope.value;
     function quantity(r, destination, label) {
-      const wrap = el('label', undefined, 'tv-quantity'); wrap.append(el('span',label));
-      const input = el('input'); input.type = 'number'; input.min = '0'; input.max = '100'; input.step = '1'; input.value = '0'; input.dataset.record = r.id; input.setAttribute('aria-label',label); wrap.append(input); destination.append(wrap);
+      const item = el('div', undefined, 'tv-check-item');
+      const wrap = el('label', undefined, 'tv-check-label');
+      const check = el('input'); check.type = 'checkbox'; check.className = 'tv-item-check';
+      const title = el('span', label, 'tv-check-title'); wrap.append(check,title); item.append(wrap);
+      const input = el('input'); input.type = 'number'; input.min = '1'; input.max = '100'; input.step = '1'; input.value = '1'; input.disabled = true; input.dataset.record = r.id; input.setAttribute('aria-label',`عدد ${label}`); input.className = 'tv-item-quantity'; item.append(input);
+      check.addEventListener('change',() => { input.disabled = !check.checked; if (check.checked) input.focus(); invalidate(); });
       const details = el('details', undefined, 'tv-service-details');
-      details.append(el('summary', `تفاصيل الخدمة — ${label}`));
+      details.append(el('summary', `ما الذي تشمل عليه الخدمة؟`));
       details.append(el('p', r.details || 'لم تُضف تفاصيل لهذه الخدمة بعد. تواصل معنا للاستفسار.', 'tv-service-description'));
-      destination.append(details);
+      item.append(details); destination.append(item);
     }
     function travelers() {
       const box = find('.tv-travelers'); box.replaceChildren();
@@ -32,10 +37,19 @@
       invalidate();
     }
     function tiers() {
-      tier.replaceChildren();
+      tier.replaceChildren(); tierList.replaceChildren();
       const available = new Set(catalog.filter(r => r.kind === 'visa' && r.country === country.value).map(r => r.tier));
-      Object.entries(config.tiers).forEach(([key,label]) => { if (available.has(key)) tier.append(option(key,label)); });
-      tier.disabled = available.size === 0; travelers();
+      const groupName = `travisa-tier-${Math.random().toString(36).slice(2)}`;
+      Object.entries(config.tiers).forEach(([key,label]) => {
+        if (!available.has(key)) return;
+        tier.append(option(key,label));
+        const choice = el('label',undefined,'tv-tier-choice'); const radio=el('input'); radio.type='radio'; radio.name=groupName; radio.value=key;
+        choice.append(radio,el('span',label)); tierList.append(choice);
+        radio.addEventListener('change',()=>{tier.value=key;travelers();});
+      });
+      tier.disabled = available.size === 0;
+      const first = tierList.querySelector('input'); if (first) { first.checked=true; tier.value=first.value; }
+      travelers();
     }
     country.addEventListener('change',tiers); tier.addEventListener('change',travelers);
     catalog.filter(r => r.kind === 'standalone').forEach(r => quantity(r,find('.tv-extras'),r.name));
@@ -44,12 +58,13 @@
     function request() {
       const items = [];
       form.querySelectorAll('[data-record]').forEach(input => {
+        if (input.disabled) return;
         const n = Number(input.value);
         if (!Number.isInteger(n) || n < 0 || n > 100) throw new Error('الأعداد من 0 إلى 100، دون كسور.');
         if (n > 0) items.push({id: input.dataset.record, quantity: n});
       });
       if (!items.length) throw new Error('اختر مسافرًا واحدًا أو خدمة مستقلة على الأقل.');
-      return {items, appointment: tier.value === 'home' ? 'vip' : appointment.value};
+      return {items, appointment: tier.value === 'home' ? 'vip' : appointment.value, product_id: Number(config.productId || 0)};
     }
     async function post(action, data, signature) {
       const body = new URLSearchParams({action, nonce:config.nonce, request:JSON.stringify(data)});

@@ -63,6 +63,11 @@ class TraVisa_Admin {
                 $version = TraVisa_Store::commit($p['rows'], $p['base'], $p['name'], $p['hash'], $p['restore']);
                 delete_transient(self::key()); self::redirect('تم اعتماد الإصدار ' . $version . ' وحفظ سجل العملية.');
             }
+            if ($op === 'sync_products') {
+                if (!class_exists('TraVisa_Products')) { throw new RuntimeException('وحدة منتجات WooCommerce غير متاحة.'); }
+                $rows = array_values(TraVisa_Store::rows()); if (!$rows) { throw new RuntimeException('اعتمد ملف الأسعار أولًا.'); }
+                $ids = TraVisa_Products::sync($rows); self::redirect('تمت مزامنة ' . count($ids) . ' منتجًا مع WooCommerce.');
+            }
             if ($op === 'display' || $op === 'rules') {
                 if (!current_user_can('manage_options')) { wp_die('إدارة العرض وقواعد الحساب متاحة للأدمن فقط.', '', ['response'=>403]); }
                 if ($op === 'display') {
@@ -94,7 +99,10 @@ class TraVisa_Admin {
         $message = get_transient('travisa_message_' . get_current_user_id());
         if ($message) { echo '<div class="notice notice-info"><p>' . esc_html($message) . '</p></div>'; delete_transient('travisa_message_' . get_current_user_id()); }
         echo '<p>الإصدار النشط: <strong>' . esc_html(TraVisa_Store::version()) . '</strong> · عدد السجلات: ' . count(TraVisa_Store::rows()) . '</p>';
-        echo '<p>واجهة العميل: أضف <code>[travisa_services]</code> إلى صفحة ووردبريس. الاستيراد يستبدل كامل جدول الأسعار؛ السجلات المحذوفة تظهر في المعاينة. الإصدارات السابقة تبقى محفوظة.</p>';
+        $sync_error = get_option('travisa_product_sync_error','');
+        if ($sync_error) { echo '<div class="notice notice-error inline"><p>تعذرت مزامنة المنتجات: ' . esc_html($sync_error) . '</p></div>'; }
+        self::form('sync_products'); echo '<button class="button">مزامنة منتجات WooCommerce الآن</button></form>';
+        echo '<p>واجهة العميل: تُنشأ منتجات WooCommerce تلقائيًا. استخدم <code>[travisa_services]</code> في صفحة عادية لعرض دليل المنتجات؛ صفحة المتجر الرسمية تعرضها تلقائيًا. الاستيراد يستبدل كامل جدول الأسعار؛ السجلات المحذوفة تظهر في المعاينة. الإصدارات السابقة تبقى محفوظة.</p>';
         echo '<h2>استيراد Excel</h2><p>تُقبل ورقة4 مع ورقة2 أو ورقة5 من الملف الأصلي، أو قالب TraVisa. الخدمة التي لا تحتوي أي سعر تُتجاهل ولا تُرفع. الصفر الصريح يُعد سعرًا. لا يعتمد أي ملف به أخطاء.</p>';
         echo '<p><a href="' . esc_url(plugins_url('templates/travisa-template.xlsx',TRAVISA_FILE)) . '">تنزيل قالب الاستيراد الفارغ</a></p>';
         self::form('preview',true); echo '<label>ملف الأسعار <input type="file" name="workbook" accept=".xlsx" required></label> <button class="button button-primary">فحص الملف ومعاينة التغييرات</button></form>';
