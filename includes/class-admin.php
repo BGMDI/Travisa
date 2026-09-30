@@ -74,7 +74,7 @@ class TraVisa_Admin {
         if ($message) { echo '<div class="notice notice-info"><p>' . esc_html($message) . '</p></div>'; delete_transient('travisa_message_' . get_current_user_id()); }
         echo '<p>الإصدار النشط: <strong>' . esc_html(TraVisa_Store::version()) . '</strong> · عدد السجلات: ' . count(TraVisa_Store::rows()) . '</p>';
         echo '<p>واجهة العميل: أضف <code>[travisa_services]</code> إلى صفحة ووردبريس. الاستيراد يستبدل كامل جدول الأسعار؛ السجلات المحذوفة تظهر في المعاينة. الإصدارات السابقة تبقى محفوظة.</p>';
-        echo '<h2>استيراد Excel</h2><p>تُقبل ورقة2 وورقة4 من الملف الأصلي، أو قالب TraVisa. الخدمة التي لا تحتوي أي سعر تُتجاهل ولا تُرفع. الصفر الصريح يُعد سعرًا. لا يعتمد أي ملف به أخطاء.</p>';
+        echo '<h2>استيراد Excel</h2><p>تُقبل ورقة4 مع ورقة2 أو ورقة5 من الملف الأصلي، أو قالب TraVisa. الخدمة التي لا تحتوي أي سعر تُتجاهل ولا تُرفع. الصفر الصريح يُعد سعرًا. لا يعتمد أي ملف به أخطاء.</p>';
         echo '<p><a href="' . esc_url(plugins_url('templates/travisa-template.xlsx',TRAVISA_FILE)) . '">تنزيل قالب الاستيراد الفارغ</a></p>';
         self::form('preview',true); echo '<label>ملف الأسعار <input type="file" name="workbook" accept=".xlsx" required></label> <button class="button button-primary">فحص الملف ومعاينة التغييرات</button></form>';
         $p = get_transient(self::key());

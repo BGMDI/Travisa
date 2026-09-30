@@ -46,7 +46,6 @@ class TraVisa_Xlsx {
             if (isset($mapped[$key])) { $used[$key] = true; }
         }
         unset($row);
-        foreach ($mapped as $key=>$text) { if (!isset($used[$key])) { $errors[] = 'ورقة1: وصف بلا خدمة تسعير مطابقة: '.$key; } }
         return $rows;
     }
     private static function xml(string $text): SimpleXMLElement {
@@ -163,7 +162,7 @@ class TraVisa_Xlsx {
                 $rows[] = $r;
             }
         } else {
-            if (!isset($sheets['ورقة4'], $sheets['ورقة2'])) { return ['rows' => [], 'errors' => ['يلزم ورقة2 وورقة4 من الملف الأصلي، أو ورقة TraVisa بالقالب المرفق.']]; }
+            if (!isset($sheets['ورقة4']) || (!isset($sheets['ورقة2']) && !isset($sheets['ورقة5']))) { return ['rows' => [], 'errors' => ['يلزم ورقة4 مع ورقة2 أو ورقة5، أو ورقة TraVisa بالقالب المرفق.']]; }
             $map = array_combine(TraVisa_Domain::MONEY, ['F','G','H','I','J','K','L','M','N','O']);
             foreach ($sheets['ورقة4'] as $n => $cells) {
                 $name = trim((string)$v($cells, 'C')); if ($n < 3 || $name === '') { continue; }
@@ -189,19 +188,31 @@ class TraVisa_Xlsx {
                     if (abs((float)$v($cells, 'P') * 100 - $both) < 1) { $errors[] = 'ورقة4!P' . $n . ': الإجمالي يجمع الموعد العادي وVIP؛ صحّح الإجمالي لنوع الموعد المقصود أو استخدم قالب TraVisa الذي يفصل المكونات.'; }
                 }
             }
-            $map = ['service'=>'D','file'=>'E','print'=>'F','extra'=>'G','insurance'=>'H','appointment_normal'=>'I','appointment_vip'=>'J'];
-            foreach ($sheets['ورقة2'] as $n => $cells) {
-                $name = trim((string)$v($cells, 'B')); if ($n < 3 || $name === '') { continue; }
-                // These four bundles belong to the country catalog, not the standalone catalog.
-                if (str_contains($name, 'تجهيز ملف التأشيرة') || str_contains($name, 'الزيارة المنزلية')) { continue; }
-                $r = $make($cells, $map, ['kind'=>'standalone','name'=>str_replace('YOVISA','TraVisa',$name),'country'=>'','category'=>'','tier'=>TraVisa_Domain::tier($name)], 'L', 'ورقة2!' . $n);
-                if (!$has_price($r)) { $skipped[] = $r['source']; continue; }
-                $rows[] = $r;
-                $base = ($r['service']??0)+($r['file']??0)+($r['print']??0)+($r['extra']??0);
-                $total = $base+($r['insurance']??0)+($r['appointment_normal']??0)+($r['appointment_vip']??0);
-                if (is_numeric($v($cells,'K')) && abs((float)$v($cells,'K')*100-$total)>1) { $errors[] = 'ورقة2!K' . $n . ': الإجمالي لا يطابق المكونات.'; }
-                if (is_numeric($v($cells,'M')) && abs((float)$v($cells,'M')*100-round($base*$r['discount_bp']/10000))>1) { $errors[] = 'ورقة2!M' . $n . ': الخصم لا يطابق المكونات.'; }
-                if (is_numeric($v($cells, 'N')) && (float)$v($cells, 'N') < 0) { $errors[] = 'ورقة2!N' . $n . ': إجمالي سالب.'; }
+            if (isset($sheets['ورقة2'])) {
+                $map = ['service'=>'D','file'=>'E','print'=>'F','extra'=>'G','insurance'=>'H','appointment_normal'=>'I','appointment_vip'=>'J'];
+                foreach ($sheets['ورقة2'] as $n => $cells) {
+                    $name = trim((string)$v($cells, 'B')); if ($n < 3 || $name === '') { continue; }
+                    // These four bundles belong to the country catalog, not the standalone catalog.
+                    if (str_contains($name, 'تجهيز ملف التأشيرة') || str_contains($name, 'الزيارة المنزلية')) { continue; }
+                    $r = $make($cells, $map, ['kind'=>'standalone','name'=>str_replace('YOVISA','TraVisa',$name),'country'=>'','category'=>'','tier'=>TraVisa_Domain::tier($name)], 'L', 'ورقة2!' . $n);
+                    if (!$has_price($r)) { $skipped[] = $r['source']; continue; }
+                    $rows[] = $r;
+                    $base = ($r['service']??0)+($r['file']??0)+($r['print']??0)+($r['extra']??0);
+                    $total = $base+($r['insurance']??0)+($r['appointment_normal']??0)+($r['appointment_vip']??0);
+                    if (is_numeric($v($cells,'K')) && abs((float)$v($cells,'K')*100-$total)>1) { $errors[] = 'ورقة2!K' . $n . ': الإجمالي لا يطابق المكونات.'; }
+                    if (is_numeric($v($cells,'M')) && abs((float)$v($cells,'M')*100-round($base*$r['discount_bp']/10000))>1) { $errors[] = 'ورقة2!M' . $n . ': الخصم لا يطابق المكونات.'; }
+                    if (is_numeric($v($cells, 'N')) && (float)$v($cells, 'N') < 0) { $errors[] = 'ورقة2!N' . $n . ': إجمالي سالب.'; }
+                }
+            } else {
+                $map = ['service'=>'C','print'=>'E','shipping'=>'F'];
+                foreach ($sheets['ورقة5'] as $n => $cells) {
+                    $name = trim((string)$v($cells, 'A')); if ($n < 3 || $name === '') { continue; }
+                    $r = $make($cells, $map, ['kind'=>'standalone','name'=>str_replace('YOVISA','TraVisa',$name),'country'=>'','category'=>'','tier'=>TraVisa_Domain::tier($name)], 'Z', 'ورقة5!' . $n);
+                    if (!$has_price($r)) { $skipped[] = $r['source']; continue; }
+                    $rows[] = $r;
+                    $total = ($r['service']??0)+($r['print']??0)+($r['shipping']??0);
+                    if (is_numeric($v($cells,'L')) && abs((float)$v($cells,'L')*100-$total)>1) { $errors[] = 'ورقة5!L' . $n . ': الإجمالي لا يطابق المكونات.'; }
+                }
             }
         }
         if (isset($sheets['ورقة1'])) { $rows = self::attach_descriptions($sheets['ورقة1'], $rows, $errors); }
