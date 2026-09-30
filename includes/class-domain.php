@@ -83,7 +83,7 @@ class TraVisa_Domain {
                 if ($r['kind'] === 'standalone') { $chosen = $r['tier'] === 'vip' ? 'vip' : 'normal'; }
                 $ap = $r['appointment_' . $chosen] ?? null;
                 if ($ap === null) { throw new InvalidArgumentException('رسوم الموعد المختار غير متاحة: ' . $r['name'] . ' / ' . $r['category']); }
-                if ($chosen === 'vip' && !empty($rules['vip_additive'])) {
+                if ($chosen === 'vip' && !empty($rules['vip_additive']) && $r['tier'] !== 'vip_pro') {
                     if (($r['appointment_normal'] ?? null) === null && $r['tier'] !== 'home') { throw new InvalidArgumentException('رسوم الموعد العادي مفقودة.'); }
                     $ap += $r['appointment_normal'] ?? 0;
                 }
@@ -92,9 +92,10 @@ class TraVisa_Domain {
             $off = (($r['kind'] === 'visa' ? $count : $q) >= $minimum) ? (int)round($eligible * $r['discount_bp'] / 10000) : 0;
             $visa = $r['visa_' . $chosen] ?? $r['visa_normal'] ?? null;
             $shipping = $r['shipping'] ?? null;
-            $payable = $eligible + $insurance + $ap * $q - $off;
-            $information = (($visa ?? 0) + ($shipping ?? 0)) * $q;
-            $lines[] = ['id' => $r['id'], 'name' => $r['name'], 'country' => $r['country'], 'category' => $r['category'], 'tier' => $r['tier'], 'details' => $r['details'] ?? '', 'quantity' => $q, 'appointment' => $chosen, 'eligible' => $eligible, 'insurance' => $insurance, 'appointment_fee' => $ap * $q, 'discount' => $off, 'payable' => $payable, 'visa_info' => $visa === null ? null : $visa * $q, 'shipping_info' => $shipping === null ? null : $shipping * $q];
+            $visa_payable = $r['kind'] === 'visa' && in_array($r['tier'], ['vip_pro','home'], true) ? ($visa ?? 0) * $q : 0;
+            $payable = $eligible + $insurance + $ap * $q + $visa_payable - $off;
+            $information = ((in_array($r['tier'], ['vip_pro','home'], true) ? 0 : ($visa ?? 0)) + ($shipping ?? 0)) * $q;
+            $lines[] = ['id' => $r['id'], 'name' => $r['name'], 'country' => $r['country'], 'category' => $r['category'], 'tier' => $r['tier'], 'details' => $r['details'] ?? '', 'quantity' => $q, 'appointment' => $chosen, 'eligible' => $eligible, 'insurance' => $insurance, 'appointment_fee' => $ap * $q, 'visa_fee' => $visa_payable, 'discount' => $off, 'payable' => $payable, 'visa_info' => $visa === null ? null : $visa * $q, 'visa_included' => in_array($r['tier'], ['vip_pro','home'], true), 'shipping_info' => $shipping === null ? null : $shipping * $q];
             $total += $payable; $discount += $off; $info += $information;
         }
         return ['total' => $total, 'discount' => $discount, 'information' => $info, 'travelers' => $count, 'lines' => $lines];

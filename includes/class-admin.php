@@ -101,7 +101,7 @@ class TraVisa_Admin {
             $rules = TraVisa_Store::rules(); self::form('rules');
             echo '<p><label>الحد الأدنى للمسافرين لتطبيق الخصم <input type="number" min="1" max="100" name="discount_min_travelers" value="' . esc_attr($rules['discount_min_travelers']) . '"></label></p>';
             echo '<p><label><input type="checkbox" name="home_extra_once" ' . checked($rules['home_extra_once'],1,false) . '> احتساب مكون الخدمات الإضافية للزيارة المنزلية مرة واحدة لكل فئة مختارة بدلًا من كل مسافر</label></p>';
-            echo '<p><label><input type="checkbox" name="vip_additive" ' . checked($rules['vip_additive'],1,false) . '> رسوم موعد VIP إضافية فوق رسوم الموعد العادي (افتراضيًا تحل محلها)</label></p><button class="button">حفظ قواعد الحساب</button></form>';
+            echo '<p><label><input type="checkbox" name="vip_additive" ' . checked($rules['vip_additive'],1,false) . '> رسوم موعد VIP إضافية فوق رسوم الموعد العادي للخدمات العادية فقط؛ لا تطبق على VIP PRO</label></p><button class="button">حفظ قواعد الحساب</button></form>';
             echo '<hr><h2>الدول والمستويات والخدمات — التفعيل والإظهار</h2><p>تعطيل دولة أو مستوى يخفي خدماته. الإخفاء والتعطيل يمنعان الشراء حتى عند إرسال طلب مباشر. إضافة الدول والخدمات وتغيير أسعارها يتم بالاستيراد.</p>';
             $settings = TraVisa_Store::settings(); self::form('display');
             echo '<table class="widefat striped"><thead><tr><th>الدولة / المستوى / الخدمة</th><th>مفعّل</th><th>ظاهر</th></tr></thead><tbody>';

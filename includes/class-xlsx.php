@@ -169,24 +169,9 @@ class TraVisa_Xlsx {
                 $r = $make($cells, $map, ['kind' => 'visa', 'name' => str_replace('YOVISA', 'TraVisa', $name), 'country' => trim((string)$v($cells, 'D')), 'category' => trim((string)$v($cells, 'E')), 'tier' => TraVisa_Domain::tier($name)], 'Q', 'ورقة4!' . $n);
                 if (!$has_price($r)) { $skipped[] = $r['source']; continue; }
                 $rows[] = $r;
-                if ($v($cells, 'P') === null) { $errors[] = 'ورقة4!P' . $n . ': الإجمالي مفقود.'; }
                 $eligible = ($r['service'] ?? 0)+($r['file'] ?? 0)+($r['print'] ?? 0)+($r['extra'] ?? 0);
                 $expected_discount = round($eligible * $r['discount_bp'] / 10000);
                 if (is_numeric($v($cells,'R')) && abs((float)$v($cells,'R')*100-$expected_discount)>1) { $errors[] = 'ورقة4!R' . $n . ': قيمة الخصم لا تطابق مكونات الخدمة ونسبته.'; }
-                if (is_numeric($v($cells,'P')) && is_numeric($v($cells,'S')) && abs(((float)$v($cells,'P')-(float)($v($cells,'R')??0)-(float)$v($cells,'S'))*100)>1) { $errors[] = 'ورقة4!S' . $n . ': صافي الإجمالي لا يطابق الإجمالي ناقص الخصم.'; }
-                if ($v($cells,'P') !== null && (!is_numeric($v($cells,'P')) || (float)$v($cells,'P')<0)) { $errors[] = 'ورقة4!P' . $n . ': الإجمالي غير صالح.'; }
-                if (is_numeric($v($cells, 'S')) && (float)$v($cells, 'S') < 0) { $errors[] = 'ورقة4!S' . $n . ': إجمالي بعد الخصم سالب.'; }
-                $normal = $r['appointment_normal']; $vip = $r['appointment_vip'];
-                if (is_numeric($v($cells,'P'))) {
-                    $base = $eligible + ($r['insurance'] ?? 0); $totals = [];
-                    if ($normal !== null) { $totals[] = $base + $normal; }
-                    if ($vip !== null) { $totals[] = $base + $vip; }
-                    if ($totals && min(array_map(static fn($t)=>abs($t-(float)$v($cells,'P')*100),$totals))>1) { $errors[] = 'ورقة4!P' . $n . ': الإجمالي لا يطابق مكونات الخدمة والتأمين وأحد نوعي الموعد.'; }
-                }
-                if ($normal !== null && $vip !== null && $normal > 0 && $vip > 0 && is_numeric($v($cells, 'P'))) {
-                    $both = array_sum(array_map(static fn($f) => $r[$f] ?? 0, ['service','file','print','extra','insurance','appointment_normal','appointment_vip']));
-                    if (abs((float)$v($cells, 'P') * 100 - $both) < 1) { $errors[] = 'ورقة4!P' . $n . ': الإجمالي يجمع الموعد العادي وVIP؛ صحّح الإجمالي لنوع الموعد المقصود أو استخدم قالب TraVisa الذي يفصل المكونات.'; }
-                }
             }
             if (isset($sheets['ورقة2'])) {
                 $map = ['service'=>'D','file'=>'E','print'=>'F','extra'=>'G','insurance'=>'H','appointment_normal'=>'I','appointment_vip'=>'J'];

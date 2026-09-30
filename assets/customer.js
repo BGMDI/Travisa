@@ -69,7 +69,7 @@
       const total = el('div',undefined,'tv-total'); total.append(el('span','قيمة الخدمات بعد الخصم'),el('strong',money(q.total))); result.append(total);
       const info = el('details',undefined,'tv-info'); info.append(el('summary','رسوم معلوماتية خارج المبلغ المدفوع'));
       q.lines.filter(l => l.country).forEach(line => {
-        info.append(el('p',`${line.category}: التأشيرة ${line.visa_info === null ? 'غير محددة' : money(line.visa_info)} · الشحن ${line.shipping_info === null ? 'غير محدد' : money(line.shipping_info)}`));
+        const visaLabel = line.visa_info === null ? 'غير محددة' : `${money(line.visa_info)} ${line.visa_included ? '(مشمولة في الإجمالي)' : '(تدفع لمكتب التأشيرات)'}`; info.append(el('p',`${line.category}: التأشيرة ${visaLabel} · الشحن ${line.shipping_info === null ? 'غير محدد' : money(line.shipping_info)}`));
       }); result.append(info);
     }
     form.addEventListener('submit',async event => {
