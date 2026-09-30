@@ -5,7 +5,7 @@ class TraVisa_Products {
     public static function boot(): void {
         add_action('travisa_prices_committed', [self::class,'on_commit'], 10, 2);
         add_action('admin_init', [self::class,'maybe_sync']);
-        add_action('woocommerce_single_product_summary', [self::class,'render_product_options'], 25);
+        add_action('woocommerce_after_single_product_summary', [self::class,'render_product_options'], 5);
         add_filter('woocommerce_is_purchasable', [self::class,'purchasable'], 10, 2);
         add_filter('woocommerce_get_price_html', [self::class,'price_html'], 20, 2);
     }

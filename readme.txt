@@ -1,7 +1,7 @@
 === TraVisa Services ===
 Requires at least: 6.5
 Requires PHP: 8.1
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Requires Plugins: woocommerce
@@ -14,6 +14,9 @@ Install and activate WooCommerce, then upload this plugin ZIP. Add [travisa_serv
 Read README-AR.md for pricing defaults, permissions, schema, installation, limits and the available-source caveat.
 
 == Changelog ==
+
+= 1.2.1 =
+* عرض إعدادات خدمة المنتج بعرض كامل أسفل صورة وملخص منتج WooCommerce لمنع انضغاط الحقول على الشاشات المختلفة.
 
 = 1.2.0 =
 * إنشاء منتجات WooCommerce فعلية للدول ومجموعات الخدمات، وخيارات checklist داخل صفحة المنتج، وربط السلة ببوابات WooCommerce مثل نون باي.
