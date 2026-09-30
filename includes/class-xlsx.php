@@ -1,5 +1,54 @@
 <?php
 class TraVisa_Xlsx {
+    private static function description_key(string $name): string {
+        $name = str_ireplace(['YOVISA', 'TraVisa'], '', $name);
+        return trim(preg_replace('/\s+/u', ' ', preg_replace('/[^\p{L}\p{N}\s]/u', ' ', mb_strtolower($name))));
+    }
+    public static function attach_descriptions(array $sheet, array $rows, array &$errors): array {
+        $blocks = []; $active = null; $last = 0; $orphans = []; $started = false;
+        ksort($sheet);
+        foreach ($sheet as $n => $cells) {
+            $heading = trim((string)($cells['B']['value'] ?? ''));
+            $text = trim((string)($cells['C']['value'] ?? ''));
+            foreach (['B','C'] as $col) {
+                $cell = $cells[$col] ?? [];
+                if (!empty($cell['error']) || (isset($cell['formula']) && ($cell['value'] ?? null) === null)) { $errors[] = 'ورقة1!' . $col . $n . ': خطأ في النص أو نتيجة صيغة غير محفوظة.'; }
+            }
+            if ($n > $last + 1 || ($heading === '' && $text === '')) { $active = null; }
+            $last = $n;
+            if ($heading !== '') {
+                $started = true; $active = null;
+                if (self::description_key($heading) === 'حجوزات السفر') { continue; }
+                $active = count($blocks);
+                $blocks[] = ['heading'=>$heading, 'source'=>'ورقة1!B'.$n, 'lines'=>[]];
+            }
+            if ($text === '' || self::description_key($text) === 'رخص القيادة الدولية') { continue; }
+            $text = str_ireplace('YOVISA', 'TraVisa', $text);
+            if ($active !== null) { $blocks[$active]['lines'][] = $text; }
+            elseif ($started) { $orphans[$n] = $text; }
+        }
+        $known = []; $mapped = [];
+        foreach ($blocks as $block) {
+            foreach ($block['lines'] as $line) { $known[$line] = true; }
+            $name = self::description_key($block['heading']);
+            $is_visa = str_contains($name, 'تجهيز ملف التأشيرة') || str_contains($name, 'الزيارة المنزلية');
+            $key = $is_visa ? 'visa:'.TraVisa_Domain::tier($block['heading']) : 'standalone:'.$name;
+            if (isset($mapped[$key])) { $errors[] = $block['source'].': وصف مكرر للخدمة.'; continue; }
+            $details = implode("\n", $block['lines']);
+            if ($details === '') { $errors[] = $block['source'].': تفاصيل الخدمة فارغة.'; }
+            $mapped[$key] = $details;
+        }
+        foreach ($orphans as $n=>$text) { if (!isset($known[$text])) { $errors[] = 'ورقة1!C'.$n.': نص غير مرتبط بعنوان خدمة؛ أضف عنوان الخدمة في العمود B.'; } }
+        $used = [];
+        foreach ($rows as &$row) {
+            $key = $row['kind'] === 'visa' ? 'visa:'.$row['tier'] : 'standalone:'.self::description_key($row['name']);
+            $row['details'] = $mapped[$key] ?? '';
+            if (isset($mapped[$key])) { $used[$key] = true; }
+        }
+        unset($row);
+        foreach ($mapped as $key=>$text) { if (!isset($used[$key])) { $errors[] = 'ورقة1: وصف بلا خدمة تسعير مطابقة: '.$key; } }
+        return $rows;
+    }
     private static function xml(string $text): SimpleXMLElement {
         if (str_contains($text, "\0") || preg_match('/<!DOCTYPE|<!ENTITY/i', $text)) { throw new RuntimeException('تعريفات XML الخارجية أو ترميز XML غير المدعوم غير مسموحة.'); }
         $prior = libxml_use_internal_errors(true);
@@ -104,6 +153,7 @@ class TraVisa_Xlsx {
             foreach ($sheets['TraVisa'] as $n => $cells) {
                 if ($n === 1 || !array_filter(array_column($cells, 'value'), static fn($x) => $x !== null && $x !== '')) { continue; }
                 $meta = []; foreach (['kind', 'name', 'country', 'category', 'tier'] as $f) { $meta[$f] = trim((string)$v($cells, $cols[$f])); }
+                $meta['details'] = isset($cols['details']) ? trim((string)$v($cells, $cols['details'])) : '';
                 $rows[] = $make($cells, $cols, $meta, $cols['discount'], 'TraVisa!' . $n);
             }
         } else {
@@ -145,6 +195,7 @@ class TraVisa_Xlsx {
                 if (is_numeric($v($cells, 'N')) && (float)$v($cells, 'N') < 0) { $errors[] = 'ورقة2!N' . $n . ': إجمالي سالب.'; }
             }
         }
+        if (isset($sheets['ورقة1'])) { $rows = self::attach_descriptions($sheets['ورقة1'], $rows, $errors); }
         $errors = array_merge($errors, TraVisa_Domain::validate($rows));
         return ['rows' => $rows, 'errors' => array_values(array_unique($errors)), 'sheets' => array_keys($sheets)];
     }

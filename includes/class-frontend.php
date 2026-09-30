@@ -46,7 +46,7 @@ class TraVisa_Frontend {
         wp_enqueue_style('travisa',plugins_url('assets/customer.css',TRAVISA_FILE),[],TRAVISA_VERSION);
         wp_enqueue_script('travisa',plugins_url('assets/customer.js',TRAVISA_FILE),[],TRAVISA_VERSION,true);
         $catalog = []; $settings = TraVisa_Store::settings();
-        foreach (TraVisa_Store::rows() as $r) { if (TraVisa_Domain::visible($r,$settings)) { $catalog[] = array_intersect_key($r,array_flip(['id','kind','name','country','category','tier'])); } }
+        foreach (TraVisa_Store::rows() as $r) { if (TraVisa_Domain::visible($r,$settings)) { $catalog[] = array_intersect_key($r,array_flip(['id','kind','name','country','category','tier','details'])); } }
         wp_localize_script('travisa','TraVisa', ['url'=>admin_url('admin-ajax.php'),'nonce'=>wp_create_nonce('travisa_front'),'catalog'=>$catalog,'tiers'=>TraVisa_Domain::TIERS,'currency'=>get_woocommerce_currency()]);
         ob_start(); ?>
         <section class="tv" dir="rtl" aria-label="حجز خدمات TraVisa">

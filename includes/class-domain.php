@@ -24,6 +24,7 @@ class TraVisa_Domain {
         if (count($rows) > 5000) { $errors[] = 'الحد الأقصى 5000 سجل.'; }
         foreach ($rows as $i => $r) {
             $at = ($r['source'] ?? ('السجل ' . ($i + 1))) . ': ';
+            if (isset($r['details']) && (!is_string($r['details']) || strlen($r['details']) > 16000)) { $errors[] = $at . 'تفاصيل الخدمة يجب أن تكون نصًا لا يتجاوز 16000 بايت.'; }
             if (!in_array($r['kind'] ?? '', ['visa', 'standalone'], true) || empty($r['name']) || !isset(self::TIERS[$r['tier'] ?? ''])) { $errors[] = $at . 'نوع الخدمة أو اسمها أو مستواها غير صالح.'; continue; }
             if ($r['kind'] === 'visa' && (empty($r['country']) || empty($r['category']))) { $errors[] = $at . 'الدولة والفئة مطلوبتان.'; }
             foreach (['name','country','category'] as $f) { if (strlen($r[$f] ?? '') > 400) { $errors[] = $at . 'النص طويل جدًا: ' . $f; } }
@@ -93,7 +94,7 @@ class TraVisa_Domain {
             $shipping = $r['shipping'] ?? null;
             $payable = $eligible + $insurance + $ap * $q - $off;
             $information = (($visa ?? 0) + ($shipping ?? 0)) * $q;
-            $lines[] = ['id' => $r['id'], 'name' => $r['name'], 'country' => $r['country'], 'category' => $r['category'], 'tier' => $r['tier'], 'quantity' => $q, 'appointment' => $chosen, 'eligible' => $eligible, 'insurance' => $insurance, 'appointment_fee' => $ap * $q, 'discount' => $off, 'payable' => $payable, 'visa_info' => $visa === null ? null : $visa * $q, 'shipping_info' => $shipping === null ? null : $shipping * $q];
+            $lines[] = ['id' => $r['id'], 'name' => $r['name'], 'country' => $r['country'], 'category' => $r['category'], 'tier' => $r['tier'], 'details' => $r['details'] ?? '', 'quantity' => $q, 'appointment' => $chosen, 'eligible' => $eligible, 'insurance' => $insurance, 'appointment_fee' => $ap * $q, 'discount' => $off, 'payable' => $payable, 'visa_info' => $visa === null ? null : $visa * $q, 'shipping_info' => $shipping === null ? null : $shipping * $q];
             $total += $payable; $discount += $off; $info += $information;
         }
         return ['total' => $total, 'discount' => $discount, 'information' => $info, 'travelers' => $count, 'lines' => $lines];
@@ -106,7 +107,7 @@ class TraVisa_Domain {
             if (!isset($b[$id])) { $out['added'][] = $name; continue; }
             $old = $b[$id]; unset($old['source'], $r['source']);
             if ($old != $r) {
-                $changes = []; foreach (array_merge(self::MONEY, ['discount_bp']) as $f) { if (($old[$f] ?? null) !== ($r[$f] ?? null)) { $changes[$f] = ['before' => $old[$f] ?? null, 'after' => $r[$f] ?? null]; } }
+                $changes = []; foreach (array_merge(self::MONEY, ['discount_bp','details']) as $f) { if (($old[$f] ?? null) !== ($r[$f] ?? null)) { $changes[$f] = ['before' => $old[$f] ?? null, 'after' => $r[$f] ?? null]; } }
                 $out['changed'][] = ['name' => $name, 'fields' => $changes];
             } else { $out['unchanged']++; }
         }

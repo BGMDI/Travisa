@@ -16,6 +16,10 @@
     function quantity(r, destination, label) {
       const wrap = el('label', undefined, 'tv-quantity'); wrap.append(el('span',label));
       const input = el('input'); input.type = 'number'; input.min = '0'; input.max = '100'; input.step = '1'; input.value = '0'; input.dataset.record = r.id; input.setAttribute('aria-label',label); wrap.append(input); destination.append(wrap);
+      const details = el('details', undefined, 'tv-service-details');
+      details.append(el('summary', `تفاصيل الخدمة — ${label}`));
+      details.append(el('p', r.details || 'لم تُضف تفاصيل لهذه الخدمة بعد. تواصل معنا للاستفسار.', 'tv-service-description'));
+      destination.append(details);
     }
     function travelers() {
       const box = find('.tv-travelers'); box.replaceChildren();

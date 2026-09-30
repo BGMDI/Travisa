@@ -84,7 +84,7 @@ class TraVisa_Admin {
             self::diff($p['diff']);
             echo '<details><summary>عرض بيانات الأسعار المستوردة</summary><div style="overflow:auto;max-height:500px"><table class="widefat striped"><thead><tr><th>المصدر</th><th>الدولة / الفئة / الخدمة</th><th>مكونات السعر (بالعملة الأساسية)</th></tr></thead><tbody>';
             foreach ($p['rows'] as $r) {
-                echo '<tr><td>' . esc_html($r['source']) . '</td><td>' . esc_html($r['country'] . ' / ' . $r['category'] . ' / ' . $r['name']) . '</td><td>';
+                echo '<tr><td>' . esc_html($r['source']) . '</td><td>' . esc_html($r['country'] . ' / ' . $r['category'] . ' / ' . $r['name']) . '<details><summary>تفاصيل الخدمة</summary><p style="white-space:pre-line">' . esc_html($r['details'] ?? '') . '</p></details></td><td>';
                 foreach (TraVisa_Domain::MONEY as $f) { echo esc_html($f . ': ' . ($r[$f] === null ? 'غير محدد' : number_format($r[$f]/100,2))) . ' | '; } echo 'خصم: ' . esc_html($r['discount_bp']/100) . '%</td></tr>';
             } echo '</tbody></table></div></details>';
             self::form('commit'); echo '<input type="hidden" name="token" value="' . esc_attr($p['token']) . '"><p><button class="button button-primary" ' . disabled(!empty($p['errors']),true,false) . '>اعتماد التغييرات</button></p></form>';
@@ -112,11 +112,11 @@ class TraVisa_Admin {
     private static function diff(array $diff): void {
         echo '<p>جديد: ' . count($diff['added'] ?? []) . ' · معدل: ' . count($diff['changed'] ?? []) . ' · محذوف: ' . count($diff['removed'] ?? []) . ' · دون تغيير: ' . esc_html($diff['unchanged'] ?? 0) . '</p>';
         $labels = ['service'=>'الخدمة','file'=>'تجهيز الملف','print'=>'الطباعة','extra'=>'الإضافات','insurance'=>'التأمين','appointment_normal'=>'موعد عادي','appointment_vip'=>'موعد VIP','visa_normal'=>'التأشيرة','visa_vip'=>'تأشيرة VIP','shipping'=>'الشحن','discount_bp'=>'الخصم %'];
-        foreach (['new_countries'=>'دول جديدة','added'=>'سجلات جديدة','changed'=>'تعديلات الأسعار','removed'=>'سجلات ستُحذف'] as $type=>$title) {
+        foreach (['new_countries'=>'دول جديدة','added'=>'سجلات جديدة','changed'=>'تعديلات الأسعار والتفاصيل','removed'=>'سجلات ستُحذف'] as $type=>$title) {
             if (empty($diff[$type])) { continue; } echo '<details><summary>' . esc_html($title) . '</summary><ul>';
             foreach ($diff[$type] as $entry) {
                 if (is_array($entry)) {
-                    echo '<li>' . esc_html($entry['name']); foreach ($entry['fields'] as $f=>$change) { echo '<br>' . esc_html(($labels[$f] ?? $f) . ': ' . ($change['before']===null?'غير محدد':$change['before']/100) . ' ← ' . ($change['after']===null?'غير محدد':$change['after']/100)); } echo '</li>';
+                    echo '<li>' . esc_html($entry['name']); foreach ($entry['fields'] as $f=>$change) { if ($f === 'details') { echo '<br><strong>تفاصيل الخدمة</strong><p style="white-space:pre-line">قبل: ' . esc_html($change['before'] ?? '') . '</p><p style="white-space:pre-line">بعد: ' . esc_html($change['after'] ?? '') . '</p>'; } else { echo '<br>' . esc_html(($labels[$f] ?? $f) . ': ' . ($change['before']===null?'غير محدد':$change['before']/100) . ' ← ' . ($change['after']===null?'غير محدد':$change['after']/100)); } } echo '</li>';
                 } else { echo '<li>' . esc_html($entry) . '</li>'; }
             } echo '</ul></details>';
         }

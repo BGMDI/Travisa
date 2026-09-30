@@ -1,7 +1,7 @@
 === TraVisa Services ===
 Requires at least: 6.5
 Requires PHP: 8.1
-Stable tag: 1.0.2
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Requires Plugins: woocommerce
@@ -14,6 +14,9 @@ Install and activate WooCommerce, then upload this plugin ZIP. Add [travisa_serv
 Read README-AR.md for pricing defaults, permissions, schema, installation, limits and the available-source caveat.
 
 == Changelog ==
+= 1.1.0 =
+* Import sheet1 service descriptions, preview/version changes and display escaped text to customers.
+
 = 1.0.2 =
 * Restrict all TraVisa administration and price import/rollback to manage_options.
 
