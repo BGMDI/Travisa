@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TraVisa Services
  * Description: Arabic travel services, validated XLSX imports, price versions and WooCommerce integration.
- * Version: 1.1.0
+ * Version: 1.1.1
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Requires Plugins: woocommerce
@@ -11,7 +11,7 @@
  * License: GPL-2.0-or-later
  */
 defined('ABSPATH') || exit;
-define('TRAVISA_VERSION', '1.1.0');
+define('TRAVISA_VERSION', '1.1.1');
 define('TRAVISA_FILE', __FILE__);
 define('TRAVISA_DIR', plugin_dir_path(__FILE__));
 foreach (['domain', 'xlsx', 'store', 'admin', 'frontend', 'woocommerce'] as $module) {

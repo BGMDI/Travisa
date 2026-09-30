@@ -127,8 +127,12 @@ class TraVisa_Xlsx {
         } finally { $z->close(); }
     }
     public static function parse(string $path): array {
-        $sheets = self::read($path); $rows = []; $errors = [];
+        $sheets = self::read($path); $rows = []; $errors = []; $skipped = [];
         $v = static fn($r, $col) => $r[$col]['value'] ?? null;
+        $has_price = static function (array $row): bool {
+            foreach (TraVisa_Domain::MONEY as $field) { if (($row[$field] ?? null) !== null) { return true; } }
+            return false;
+        };
         $make = static function ($cells, $map, $meta, $discountCol, $source) use (&$errors, $v) {
             $r = $meta + ['source' => $source];
             foreach (TraVisa_Domain::MONEY as $f) {
@@ -154,7 +158,9 @@ class TraVisa_Xlsx {
                 if ($n === 1 || !array_filter(array_column($cells, 'value'), static fn($x) => $x !== null && $x !== '')) { continue; }
                 $meta = []; foreach (['kind', 'name', 'country', 'category', 'tier'] as $f) { $meta[$f] = trim((string)$v($cells, $cols[$f])); }
                 $meta['details'] = isset($cols['details']) ? trim((string)$v($cells, $cols['details'])) : '';
-                $rows[] = $make($cells, $cols, $meta, $cols['discount'], 'TraVisa!' . $n);
+                $r = $make($cells, $cols, $meta, $cols['discount'], 'TraVisa!' . $n);
+                if (!$has_price($r)) { $skipped[] = $r['source']; continue; }
+                $rows[] = $r;
             }
         } else {
             if (!isset($sheets['ورقة4'], $sheets['ورقة2'])) { return ['rows' => [], 'errors' => ['يلزم ورقة2 وورقة4 من الملف الأصلي، أو ورقة TraVisa بالقالب المرفق.']]; }
@@ -162,6 +168,7 @@ class TraVisa_Xlsx {
             foreach ($sheets['ورقة4'] as $n => $cells) {
                 $name = trim((string)$v($cells, 'C')); if ($n < 3 || $name === '') { continue; }
                 $r = $make($cells, $map, ['kind' => 'visa', 'name' => str_replace('YOVISA', 'TraVisa', $name), 'country' => trim((string)$v($cells, 'D')), 'category' => trim((string)$v($cells, 'E')), 'tier' => TraVisa_Domain::tier($name)], 'Q', 'ورقة4!' . $n);
+                if (!$has_price($r)) { $skipped[] = $r['source']; continue; }
                 $rows[] = $r;
                 if ($v($cells, 'P') === null) { $errors[] = 'ورقة4!P' . $n . ': الإجمالي مفقود.'; }
                 $eligible = ($r['service'] ?? 0)+($r['file'] ?? 0)+($r['print'] ?? 0)+($r['extra'] ?? 0);
@@ -187,7 +194,9 @@ class TraVisa_Xlsx {
                 $name = trim((string)$v($cells, 'B')); if ($n < 3 || $name === '') { continue; }
                 // These four bundles belong to the country catalog, not the standalone catalog.
                 if (str_contains($name, 'تجهيز ملف التأشيرة') || str_contains($name, 'الزيارة المنزلية')) { continue; }
-                $r = $make($cells, $map, ['kind'=>'standalone','name'=>str_replace('YOVISA','TraVisa',$name),'country'=>'','category'=>'','tier'=>TraVisa_Domain::tier($name)], 'L', 'ورقة2!' . $n); $rows[] = $r;
+                $r = $make($cells, $map, ['kind'=>'standalone','name'=>str_replace('YOVISA','TraVisa',$name),'country'=>'','category'=>'','tier'=>TraVisa_Domain::tier($name)], 'L', 'ورقة2!' . $n);
+                if (!$has_price($r)) { $skipped[] = $r['source']; continue; }
+                $rows[] = $r;
                 $base = ($r['service']??0)+($r['file']??0)+($r['print']??0)+($r['extra']??0);
                 $total = $base+($r['insurance']??0)+($r['appointment_normal']??0)+($r['appointment_vip']??0);
                 if (is_numeric($v($cells,'K')) && abs((float)$v($cells,'K')*100-$total)>1) { $errors[] = 'ورقة2!K' . $n . ': الإجمالي لا يطابق المكونات.'; }
@@ -197,6 +206,6 @@ class TraVisa_Xlsx {
         }
         if (isset($sheets['ورقة1'])) { $rows = self::attach_descriptions($sheets['ورقة1'], $rows, $errors); }
         $errors = array_merge($errors, TraVisa_Domain::validate($rows));
-        return ['rows' => $rows, 'errors' => array_values(array_unique($errors)), 'sheets' => array_keys($sheets)];
+        return ['rows' => $rows, 'errors' => array_values(array_unique($errors)), 'sheets' => array_keys($sheets), 'skipped' => $skipped];
     }
 }

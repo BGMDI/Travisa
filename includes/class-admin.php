@@ -74,12 +74,13 @@ class TraVisa_Admin {
         if ($message) { echo '<div class="notice notice-info"><p>' . esc_html($message) . '</p></div>'; delete_transient('travisa_message_' . get_current_user_id()); }
         echo '<p>الإصدار النشط: <strong>' . esc_html(TraVisa_Store::version()) . '</strong> · عدد السجلات: ' . count(TraVisa_Store::rows()) . '</p>';
         echo '<p>واجهة العميل: أضف <code>[travisa_services]</code> إلى صفحة ووردبريس. الاستيراد يستبدل كامل جدول الأسعار؛ السجلات المحذوفة تظهر في المعاينة. الإصدارات السابقة تبقى محفوظة.</p>';
-        echo '<h2>استيراد Excel</h2><p>تُقبل ورقة2 وورقة4 من الملف الأصلي، أو قالب TraVisa. الفراغ يختلف عن صفر. لا يعتمد أي ملف به أخطاء.</p>';
+        echo '<h2>استيراد Excel</h2><p>تُقبل ورقة2 وورقة4 من الملف الأصلي، أو قالب TraVisa. الخدمة التي لا تحتوي أي سعر تُتجاهل ولا تُرفع. الصفر الصريح يُعد سعرًا. لا يعتمد أي ملف به أخطاء.</p>';
         echo '<p><a href="' . esc_url(plugins_url('templates/travisa-template.xlsx',TRAVISA_FILE)) . '">تنزيل قالب الاستيراد الفارغ</a></p>';
         self::form('preview',true); echo '<label>ملف الأسعار <input type="file" name="workbook" accept=".xlsx" required></label> <button class="button button-primary">فحص الملف ومعاينة التغييرات</button></form>';
         $p = get_transient(self::key());
         if ($p) {
             echo '<hr><h2>معاينة: ' . esc_html($p['name']) . '</h2><p>المعاينة صالحة 30 دقيقة. عدد السجلات: ' . count($p['rows']) . '</p>';
+            if (!empty($p['skipped'])) { echo '<div class="notice notice-warning inline"><p>تم تجاهل ' . count($p['skipped']) . ' خدمة لأنها لا تحتوي أي سعر، ولن تُرفع أو تظهر للعميل.</p></div>'; }
             if ($p['errors']) { echo '<div class="notice notice-error inline"><p><strong>الاعتماد موقوف — ' . count($p['errors']) . ' أخطاء</strong></p><ul>'; foreach ($p['errors'] as $e) { echo '<li>' . esc_html($e) . '</li>'; } echo '</ul></div>'; }
             self::diff($p['diff']);
             echo '<details><summary>عرض بيانات الأسعار المستوردة</summary><div style="overflow:auto;max-height:500px"><table class="widefat striped"><thead><tr><th>المصدر</th><th>الدولة / الفئة / الخدمة</th><th>مكونات السعر (بالعملة الأساسية)</th></tr></thead><tbody>';
