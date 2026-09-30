@@ -1,7 +1,7 @@
 === TraVisa Services ===
 Requires at least: 6.5
 Requires PHP: 8.1
-Stable tag: 1.1.3
+Stable tag: 1.1.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Requires Plugins: woocommerce
@@ -14,6 +14,9 @@ Install and activate WooCommerce, then upload this plugin ZIP. Add [travisa_serv
 Read README-AR.md for pricing defaults, permissions, schema, installation, limits and the available-source caveat.
 
 == Changelog ==
+
+= 1.1.4 =
+* إصلاح حفظ معاينة الاستيراد عبر ضغطها والتحقق من استعادتها، لتجاوز حدود التخزين المؤقت وقاعدة البيانات.
 
 = 1.1.3 =
 * إضافة رسوم التأشيرة للزيارة المنزلية وVIP PRO فقط، مع احتساب موعد عادي أو VIP واحد حسب اختيار العميل.

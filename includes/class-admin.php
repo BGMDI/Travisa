@@ -9,6 +9,27 @@ class TraVisa_Admin {
         });
     }
     private static function key(): string { return 'travisa_preview_' . get_current_user_id(); }
+    private static function save_preview(array $preview): void {
+        $json = wp_json_encode($preview, JSON_UNESCAPED_UNICODE);
+        if (!is_string($json)) { throw new RuntimeException('تعذر تجهيز بيانات المعاينة.'); }
+        $payload = function_exists('gzencode') ? 'gz:' . base64_encode(gzencode($json, 6)) : 'json:' . $json;
+        delete_transient(self::key());
+        $saved = set_transient(self::key(), $payload, 30 * MINUTE_IN_SECONDS);
+        if (!$saved && get_transient(self::key()) !== $payload) { throw new RuntimeException('تعذر حفظ المعاينة في قاعدة البيانات أو التخزين المؤقت.'); }
+    }
+    private static function load_preview(): array|false {
+        $payload = get_transient(self::key());
+        if (is_array($payload)) { return $payload; }
+        if (!is_string($payload)) { return false; }
+        if (str_starts_with($payload, 'gz:')) {
+            $binary = base64_decode(substr($payload, 3), true);
+            $json = $binary === false ? false : gzdecode($binary);
+        } elseif (str_starts_with($payload, 'json:')) { $json = substr($payload, 5); }
+        else { return false; }
+        if (!is_string($json)) { return false; }
+        $preview = json_decode($json, true);
+        return is_array($preview) ? $preview : false;
+    }
     private static function redirect(string $message): void {
         set_transient('travisa_message_' . get_current_user_id(), $message, 120);
         wp_safe_redirect(admin_url('admin.php?page=travisa')); exit;
@@ -25,18 +46,18 @@ class TraVisa_Admin {
                 $base = TraVisa_Store::version(); $result = TraVisa_Xlsx::parse($file['tmp_name']);
                 $preview = $result + ['base'=>$base,'name'=>sanitize_file_name($file['name']),'hash'=>hash_file('sha256',$file['tmp_name']),'restore'=>0,'token'=>wp_generate_uuid4()];
                 $preview['diff'] = TraVisa_Domain::diff(array_values(TraVisa_Store::rows($base)), $preview['rows']);
-                if (!set_transient(self::key(), $preview, 30 * MINUTE_IN_SECONDS)) { throw new RuntimeException('تعذر حفظ المعاينة؛ افحص اتصال قاعدة البيانات وحدود الحجم.'); }
+                self::save_preview($preview);
                 self::redirect('اكتمل الفحص. راجع الأخطاء والتغييرات أدناه.');
             }
             if ($op === 'restore_preview') {
                 $id = absint($_POST['version'] ?? 0);
                 if (!$id || !TraVisa_Store::has_version($id)) { throw new RuntimeException('الإصدار غير موجود.'); }
                 $rows = array_values(TraVisa_Store::rows($id)); $base = TraVisa_Store::version();
-                if (!set_transient(self::key(), ['rows'=>$rows,'errors'=>TraVisa_Domain::validate($rows),'base'=>$base,'name'=>'استرجاع الإصدار ' . $id,'hash'=>hash('sha256',wp_json_encode($rows)),'restore'=>$id,'token'=>wp_generate_uuid4(),'diff'=>TraVisa_Domain::diff(array_values(TraVisa_Store::rows($base)),$rows)], 30 * MINUTE_IN_SECONDS)) { throw new RuntimeException('تعذر حفظ معاينة الاسترجاع.'); }
+                self::save_preview(['rows'=>$rows,'errors'=>TraVisa_Domain::validate($rows),'base'=>$base,'name'=>'استرجاع الإصدار ' . $id,'hash'=>hash('sha256',wp_json_encode($rows)),'restore'=>$id,'token'=>wp_generate_uuid4(),'diff'=>TraVisa_Domain::diff(array_values(TraVisa_Store::rows($base)),$rows)]);
                 self::redirect('راجع معاينة الاسترجاع. إعدادات العرض والتفعيل وقواعد الحساب ستبقى كما هي.');
             }
             if ($op === 'commit') {
-                $p = get_transient(self::key());
+                $p = self::load_preview();
                 if (!$p || !hash_equals($p['token'], sanitize_text_field(wp_unslash($_POST['token'] ?? '')))) { throw new RuntimeException('انتهت صلاحية المعاينة؛ أعد الفحص.'); }
                 if (!empty($p['errors'])) { throw new RuntimeException('لا يمكن الاعتماد حتى تصحيح جميع الأخطاء وإعادة الفحص.'); }
                 $version = TraVisa_Store::commit($p['rows'], $p['base'], $p['name'], $p['hash'], $p['restore']);
@@ -77,7 +98,7 @@ class TraVisa_Admin {
         echo '<h2>استيراد Excel</h2><p>تُقبل ورقة4 مع ورقة2 أو ورقة5 من الملف الأصلي، أو قالب TraVisa. الخدمة التي لا تحتوي أي سعر تُتجاهل ولا تُرفع. الصفر الصريح يُعد سعرًا. لا يعتمد أي ملف به أخطاء.</p>';
         echo '<p><a href="' . esc_url(plugins_url('templates/travisa-template.xlsx',TRAVISA_FILE)) . '">تنزيل قالب الاستيراد الفارغ</a></p>';
         self::form('preview',true); echo '<label>ملف الأسعار <input type="file" name="workbook" accept=".xlsx" required></label> <button class="button button-primary">فحص الملف ومعاينة التغييرات</button></form>';
-        $p = get_transient(self::key());
+        $p = self::load_preview();
         if ($p) {
             echo '<hr><h2>معاينة: ' . esc_html($p['name']) . '</h2><p>المعاينة صالحة 30 دقيقة. عدد السجلات: ' . count($p['rows']) . '</p>';
             if (!empty($p['skipped'])) { echo '<div class="notice notice-warning inline"><p>تم تجاهل ' . count($p['skipped']) . ' خدمة لأنها لا تحتوي أي سعر، ولن تُرفع أو تظهر للعميل.</p></div>'; }
